@@ -3,57 +3,75 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:vector_math/vector_math_64.dart' as vector64;
 
-class ArEarthMapScreen extends  StatefulWidget {
+class ArEarthMapScreen extends StatefulWidget {
   const ArEarthMapScreen({super.key});
 
   @override
   State<ArEarthMapScreen> createState() => _ArEarthMapScreenState();
 }
 
-
-class _ArEarthMapScreenState extends State<ArEarthMapScreen>
-{
+class _ArEarthMapScreenState extends State<ArEarthMapScreen> {
   ArCoreController? augmentedRealityCoreController;
 
-  augmentedRealityViewCreated(ArCoreController coreController)
-  {
+  @override
+  void dispose() {
+    augmentedRealityCoreController?.dispose();
+    super.dispose();
+  }
+
+  void augmentedRealityViewCreated(ArCoreController coreController) {
     augmentedRealityCoreController = coreController;
+    augmentedRealityCoreController!.onError = (String error) {
+      print("ARCore Error: $error");
+    };
 
-    displayArSphere(augmentedRealityCoreController!);
+    // Set up a tap listener
+    augmentedRealityCoreController!.onPlaneTap = (List<ArCoreHitTestResult> hits) {
+      if (hits.isNotEmpty) {
+        // Display the AR texture at the tapped location
+        displayArTexture(hits.first);
+      }
+    };
   }
 
-  displayArSphere(ArCoreController coreController) async
-  {
-    final ByteData earthtextureBytes = await rootBundle.load("images/earth_map.jpg");
+  void displayArTexture(ArCoreHitTestResult hit) async {
+    // Load the image as texture
+    final ByteData textureBytes = await rootBundle.load("images/clipboard.jpg");
 
-    final materials = ArCoreMaterial(
-      color: Colors.blue,
-      textureBytes: earthtextureBytes.buffer.asUint8List(),
+    // Create a material with the image texture
+    final material = ArCoreMaterial(
+      color: Colors.transparent, // Base color
+      textureBytes: textureBytes.buffer.asUint8List(),
     );
 
-    final sphere = ArCoreSphere(
-      materials: [materials],
+    // Create a shape to apply the material
+    final cube = ArCoreCube(
+      materials: [material],
+      size: vector64.Vector3(1, 0.01, 1), // Very thin cube to simulate a plane
     );
 
+    // Create a node with the cube shape
     final node = ArCoreNode(
-      shape: sphere,
-      position: vector64.Vector3(0, 0, -1.5),
+      shape: cube,
+      position: hit.pose.translation, // Use the tapped position
+      rotation: vector64.Vector4(1.0, 0.0, 0.0, -3.14159 / 2), // Correct 90-degree rotation
+      scale: vector64.Vector3(1, 1, 1), // Adjust scale if needed
     );
 
-    augmentedRealityCoreController!.addArCoreNode(node);
+    augmentedRealityCoreController?.addArCoreNodeWithAnchor(node);
   }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          title: const Text(
-              "AR Earth Map"
-          ),
-          centerTitle: true,
-        ),
-        body: ArCoreView(
-          onArCoreViewCreated: augmentedRealityViewCreated,
-        )
+      appBar: AppBar(
+        title: const Text("AR Store Sign"),
+        centerTitle: true,
+      ),
+      body: ArCoreView(
+        onArCoreViewCreated: augmentedRealityViewCreated,
+        enableTapRecognizer: true, // Enable tap recognition
+      ),
     );
   }
 }
