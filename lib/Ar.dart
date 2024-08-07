@@ -12,6 +12,7 @@ class ArEarthMapScreen extends StatefulWidget {
 
 class _ArEarthMapScreenState extends State<ArEarthMapScreen> {
   ArCoreController? augmentedRealityCoreController;
+  ArCoreNode? earthNode;
 
   @override
   void dispose() {
@@ -28,8 +29,15 @@ class _ArEarthMapScreenState extends State<ArEarthMapScreen> {
     // Set up a tap listener
     augmentedRealityCoreController!.onPlaneTap = (List<ArCoreHitTestResult> hits) {
       if (hits.isNotEmpty) {
-        // Display the AR texture at the tapped location
-        displayArTexture(hits.first);
+        final hit = hits.first;
+        if (earthNode == null) {
+          // Display the AR texture at the tapped location
+          displayArTexture(hit);
+        } else {
+          // Remove the node if it exists
+          augmentedRealityCoreController!.removeNode(nodeName: earthNode!.name!);
+          earthNode = null;
+        }
       }
     };
   }
@@ -52,6 +60,7 @@ class _ArEarthMapScreenState extends State<ArEarthMapScreen> {
 
     // Create a node with the cube shape
     final node = ArCoreNode(
+      name: "earthNode",
       shape: cube,
       position: hit.pose.translation, // Use the tapped position
       rotation: vector64.Vector4(1.0, 0.0, 0.0, -3.14159 / 2), // Correct 90-degree rotation
@@ -59,6 +68,7 @@ class _ArEarthMapScreenState extends State<ArEarthMapScreen> {
     );
 
     augmentedRealityCoreController?.addArCoreNodeWithAnchor(node);
+    earthNode = node;
   }
 
   @override
